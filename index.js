@@ -47,14 +47,9 @@ const verifyToken = (req, res, next) => {
 async function run() {
     try {
         const UserCollection = client.db("educational").collection("users");
-        const SessionCollection = client.db("educational").collection("sessions");
-        const CourseCollection = client.db("educational").collection("courses");
-        const SectionCollection = client.db("educational").collection("sections");
-        const MaterialCollection = client.db("educational").collection("materials");
-        const EnrollmentCollection = client.db("educational").collection("enrollments");
-        const AttendanceCollection = client.db("educational").collection("attendance");
-        const GradeCollection = client.db("educational").collection("grades");
-        const AnnouncementCollection = client.db("educational").collection("announcements");
+        const StudentCollection = client.db("educational").collection("students");
+        const FacultyCollection = client.db("educational").collection("faculty");
+        const AdminCollection = client.db("educational").collection("admin");
 
         // GET Routes
 
@@ -85,100 +80,204 @@ async function run() {
             }
         });
 
-        // Sessions
-        app.get('/sessions', async (req, res) => {
+        app.get('/users/:email', async (req, res) => {
             try {
-                const sessions = await SessionCollection.find().toArray();
-                res.json(sessions);
+                const email = req.params.email;
+                const user = await UserCollection
+                    .findOne({ email: email });
+            
+                if (!user) {
+                    return res.status(404).json({ message: "User not found" });
+                }
+
+                res.json(user);
             } catch (error) {
                 res.status(500).json({ message: error.message });
             }
+        }
+        );
+
+        // Students
+        // Add these routes inside your run() function after declaring StudentCollection
+
+// Get all students
+app.get('/students', async (req, res) => {
+    try {
+        const students = await StudentCollection.find().toArray();
+        res.json(students);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get student by email
+app.get('/students/:email', async (req, res) => {
+    try {
+        const email = req.params.email;
+        const student = await StudentCollection.findOne({ "personalInfo.email": email });
+        
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+        
+        res.json(student);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Create a new student
+app.post('/students', async (req, res) => {
+    try {
+        // First check if this student exists in Users collection
+        const userExists = await UserCollection.findOne({ 
+            email: req.body.personalInfo.email,
+            role: "Student"
         });
 
-        // Courses
-        app.get('/courses', async (req, res) => {
-            try {
-                const courses = await CourseCollection.find().toArray();
-                res.json(courses);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
+        if (!userExists) {
+            return res.status(404).json({ message: "User must first exist in Users collection with Student role" });
+        }
+
+        // Check if student already exists
+        const studentExists = await StudentCollection.findOne({
+            "personalInfo.email": req.body.personalInfo.email
         });
 
-        // Sections
-        app.get('/sections', async (req, res) => {
-            try {
-                const sections = await SectionCollection.find().toArray();
-                res.json(sections);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
+        if (studentExists) {
+            return res.status(409).json({ message: "Student already exists" });
+        }
+
+        const result = await StudentCollection.insertOne(req.body);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+// Get all faculty members
+app.get('/faculty', async (req, res) => {
+    try {
+        const faculty = await FacultyCollection.find().toArray();
+        res.json(faculty);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get faculty by email
+app.get('/faculty/:email', async (req, res) => {
+    try {
+        const email = req.params.email;
+        const faculty = await FacultyCollection.findOne({ "personalInfo.email": email });
+        
+        if (!faculty) {
+            return res.status(404).json({ message: "Faculty member not found" });
+        }
+        
+        res.json(faculty);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Create a new faculty record
+app.post('/faculty', async (req, res) => {
+    try {
+        // Check if user exists in Users collection with Faculty role
+        const userExists = await UserCollection.findOne({ 
+            email: req.body.personalInfo.email,
+            role: "Faculty"
         });
 
-        app.post('/sessions', async (req, res) => {
-            try {
-                const session = {
-                    ...req.body,
-                    start_date: new Date(req.body.start_date),
-                    end_date: new Date(req.body.end_date),
-                    created_at: new Date()
-                };
-                const result = await SessionCollection.insertOne(session);
-                res.json(result);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
+        if (!userExists) {
+            return res.status(404).json({ 
+                message: "User must first exist in Users collection with Faculty role" 
+            });
+        }
+
+        // Check if faculty record already exists
+        const facultyExists = await FacultyCollection.findOne({
+            "personalInfo.email": req.body.personalInfo.email
         });
 
-        // Materials
-        app.get('/materials', async (req, res) => {
-            try {
-                const materials = await MaterialCollection.find().toArray();
-                res.json(materials);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
+        if (facultyExists) {
+            return res.status(409).json({ message: "Faculty record already exists" });
+        }
+
+        const result = await FacultyCollection.insertOne(req.body);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get all admins
+app.get('/admin', async (req, res) => {
+    try {
+        const admins = await AdminCollection.find().toArray();
+        res.json(admins);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get admin by email
+app.get('/admin/:email', async (req, res) => {
+    try {
+        const email = req.params.email;
+        const admin = await AdminCollection.findOne({ "personalInfo.email": email });
+        
+        if (!admin) {
+            return res.status(404).json({ message: "Admin not found" });
+        }
+        
+        res.json(admin);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Create a new admin record
+app.post('/admin', async (req, res) => {
+    try {
+        // Check if user exists in Users collection with Admin role
+        const userExists = await UserCollection.findOne({ 
+            email: req.body.personalInfo.email,
+            role: "Admin"
         });
 
-        // Enrollments
-        app.get('/enrollments', async (req, res) => {
-            try {
-                const enrollments = await EnrollmentCollection.find().toArray();
-                res.json(enrollments);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
+        if (!userExists) {
+            return res.status(404).json({ 
+                message: "User must first exist in Users collection with Admin role" 
+            });
+        }
+
+        // Check if admin record already exists
+        const adminExists = await AdminCollection.findOne({
+            "personalInfo.email": req.body.personalInfo.email
         });
 
-        // Attendance
-        app.get('/attendance', async (req, res) => {
-            try {
-                const attendance = await AttendanceCollection.find().toArray();
-                res.json(attendance);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
-        });
+        if (adminExists) {
+            return res.status(409).json({ message: "Admin record already exists" });
+        }
 
-        // Grades
-        app.get('/grades', async (req, res) => {
-            try {
-                const grades = await GradeCollection.find().toArray();
-                res.json(grades);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
-        });
+        // Add timestamp to activities
+        const adminData = {
+            ...req.body,
+            recentActivities: req.body.recentActivities.map(activity => ({
+                action: activity,
+                timestamp: new Date()
+            }))
+        };
 
-        // Announcements
-        app.get('/announcements', async (req, res) => {
-            try {
-                const announcements = await AnnouncementCollection.find().toArray();
-                res.json(announcements);
-            } catch (error) {
-                res.status(500).json({ message: error.message });
-            }
-        });
+        const result = await AdminCollection.insertOne(adminData);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
 
         console.log("Successfully connected to MongoDB!");
     } finally {
